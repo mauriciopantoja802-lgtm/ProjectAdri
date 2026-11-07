@@ -1,0 +1,387 @@
+// Glow by Adri — modelo de datos
+// Todos los valores de dinero son Int en pesos colombianos (COP), sin decimales.
+// Los cambios frente al schema base están marcados con "CAMBIO:" y su justificación.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // CAMBIO: directUrl. Neon y Supabase entregan una URL "pooled" (pgbouncer) para la app
+  // y otra directa. Las migraciones fallan a través del pooler, así que Prisma usa
+  // DIRECT_URL para migrar y DATABASE_URL para las consultas. En local pueden ser iguales.
+  directUrl = env("DIRECT_URL")
+}
+
+enum Rol {
+  ADMIN
+  CLIENTE
+}
+
+enum CanalVenta {
+  WEB
+  WHATSAPP
+  TIENDA_FISICA
+  INSTAGRAM
+  OTRO
+}
+
+enum EstadoPedido {
+  PENDIENTE
+  CONFIRMADO
+  PAGADO
+  EN_PREPARACION
+  ENVIADO
+  LISTO_PARA_RECOGER
+  ENTREGADO
+  CANCELADO
+}
+
+enum MetodoPago {
+  EFECTIVO
+  TRANSFERENCIA
+  NEQUI
+  DAVIPLATA
+  TARJETA
+  WOMPI
+  CONTRA_ENTREGA
+  MIXTO
+}
+
+enum EstadoPago {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+  REEMBOLSADO
+}
+
+enum TipoEntrega {
+  RECOGER_EN_TIENDA
+  DOMICILIO_POPAYAN
+  ENVIO_NACIONAL
+}
+
+enum TipoMovimiento {
+  ENTRADA_COMPRA
+  SALIDA_VENTA
+  AJUSTE_POSITIVO
+  AJUSTE_NEGATIVO
+  DEVOLUCION
+}
+
+model Usuario {
+  id          String                 @id @default(cuid())
+  nombre      String
+  email       String                 @unique
+  password    String
+  telefono    String?
+  rol         Rol                    @default(CLIENTE)
+  clienta     Clienta?
+  movimientos MovimientoInventario[]
+  cierresCaja CierreCaja[]
+  creadoEn    DateTime               @default(now())
+}
+
+model Clienta {
+  id          String      @id @default(cuid())
+  nombre      String
+  telefono    String      @unique
+  email       String?
+  usuarioId   String?     @unique
+  usuario     Usuario?    @relation(fields: [usuarioId], references: [id])
+  direcciones Direccion[]
+  pedidos     Pedido[]
+  creadoEn    DateTime    @default(now())
+}
+
+model Direccion {
+  id         String  @id @default(cuid())
+  clientaId  String
+  clienta    Clienta @relation(fields: [clientaId], references: [id], onDelete: Cascade)
+  direccion  String
+  barrio     String?
+  ciudad     String  @default("Popayán")
+  depto      String  @default("Cauca")
+  referencia String?
+}
+
+model Categoria {
+  id        String     @id @default(cuid())
+  nombre    String     @unique
+  slug      String     @unique
+  imagen    String?
+  orden     Int        @default(0)
+  productos Producto[]
+}
+
+model Marca {
+  id        String     @id @default(cuid())
+  nombre    String     @unique
+  slug      String     @unique
+  productos Producto[]
+}
+
+model Producto {
+  id          String           @id @default(cuid())
+  nombre      String
+  slug        String           @unique
+  descripcion String
+  modoUso     String?
+  categoriaId String
+  categoria   Categoria        @relation(fields: [categoriaId], references: [id])
+  marcaId     String?
+  marca       Marca?           @relation(fields: [marcaId], references: [id])
+  imagenes    ImagenProducto[]
+  variantes   Variante[]
+  // Etiquetas: "nuevo" = esNuevo, "más vendido" = destacado.
+  // "oferta" no se guarda: se deduce cuando una variante tiene precioOferta.
+  esNuevo     Boolean          @default(false)
+  destacado   Boolean          @default(false)
+  activo      Boolean          @default(true)
+  creadoEn    DateTime         @default(now())
+  actualizado DateTime         @updatedAt
+
+  // CAMBIO: índices para que el catálogo filtre rápido por categoría y marca.
+  @@index([categoriaId])
+  @@index([marcaId])
+}
+
+model ImagenProducto {
+  id         String   @id @default(cuid())
+  productoId String
+  producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  url        String
+  alt        String?
+  orden      Int      @default(0)
+
+  @@index([productoId])
+}
+
+model Variante {
+  id           String                 @id @default(cuid())
+  productoId   String
+  producto     Producto               @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  nombre       String // Ej: "Tono 03 - Rosa Nude"
+  colorHex     String?
+  sku          String                 @unique
+  codigoBarras String?                @unique
+  precio       Int
+  precioOferta Int?
+  costo        Int
+  stock        Int                    @default(0)
+  stockMinimo  Int                    @default(3)
+  activo       Boolean                @default(true)
+  itemsPedido  ItemPedido[]
+  movimientos  MovimientoInventario[]
+  itemsCompra  ItemCompra[]
+
+  @@index([productoId])
+}
+
+model MovimientoInventario {
+  id         String         @id @default(cuid())
+  varianteId String
+  variante   Variante       @relation(fields: [varianteId], references: [id])
+  tipo       TipoMovimiento
+  cantidad   Int // positiva o negativa según el tipo
+  stockFinal Int
+  motivo     String?
+  pedidoId   String?
+  pedido     Pedido?        @relation(fields: [pedidoId], references: [id])
+  compraId   String?
+  compra     Compra?        @relation(fields: [compraId], references: [id])
+  usuarioId  String?
+  usuario    Usuario?       @relation(fields: [usuarioId], references: [id])
+  creadoEn   DateTime       @default(now())
+
+  // CAMBIO: el kardex consulta siempre "movimientos de una variante ordenados por fecha".
+  @@index([varianteId, creadoEn])
+  @@index([pedidoId])
+}
+
+model Proveedor {
+  id       String   @id @default(cuid())
+  nombre   String
+  telefono String?
+  email    String?
+  nit      String?
+  compras  Compra[]
+}
+
+model Compra {
+  id          String                 @id @default(cuid())
+  proveedorId String
+  proveedor   Proveedor              @relation(fields: [proveedorId], references: [id])
+  fecha       DateTime               @default(now())
+  total       Int
+  notas       String?
+  items       ItemCompra[]
+  movimientos MovimientoInventario[]
+}
+
+model ItemCompra {
+  id         String   @id @default(cuid())
+  compraId   String
+  compra     Compra   @relation(fields: [compraId], references: [id], onDelete: Cascade)
+  varianteId String
+  variante   Variante @relation(fields: [varianteId], references: [id])
+  cantidad   Int
+  costoUnit  Int
+}
+
+model Pedido {
+  id              String                 @id @default(cuid())
+  codigo          String                 @unique // GA-0001
+  canal           CanalVenta
+  estado          EstadoPedido           @default(PENDIENTE)
+  clientaId       String?
+  clienta         Clienta?               @relation(fields: [clientaId], references: [id])
+  nombreClienta   String?
+  telefono        String?
+  tipoEntrega     TipoEntrega            @default(RECOGER_EN_TIENDA)
+  direccionEnvio  String?
+  ciudadEnvio     String?
+  // CAMBIO: método de pago elegido para el pedido. Los pagos reales siguen en "Pago"
+  // (un pago MIXTO se guarda como varios Pago), pero este campo permite filtrar la lista
+  // de pedidos por método de pago sin recorrer los pagos.
+  metodoPago      MetodoPago?
+  // CAMBIO: marca si el pedido ya descontó stock. Así, al cancelar, sabemos con certeza
+  // si hay que devolverlo (movimiento DEVOLUCION) y evitamos descontar dos veces
+  // (por ejemplo, si el webhook de Wompi llega repetido).
+  stockDescontado Boolean                @default(false)
+  subtotal        Int
+  descuento       Int                    @default(0)
+  costoEnvio      Int                    @default(0)
+  total           Int
+  cuponId         String?
+  cupon           Cupon?                 @relation(fields: [cuponId], references: [id])
+  notas           String?
+  items           ItemPedido[]
+  pagos           Pago[]
+  historial       HistorialEstado[]
+  movimientos     MovimientoInventario[]
+  creadoEn        DateTime               @default(now())
+  actualizado     DateTime               @updatedAt
+
+  // CAMBIO: índices para los filtros del panel (estado, canal, fecha) y el dashboard.
+  @@index([estado])
+  @@index([canal, creadoEn])
+  @@index([creadoEn])
+  @@index([clientaId])
+}
+
+model ItemPedido {
+  id         String   @id @default(cuid())
+  pedidoId   String
+  pedido     Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  varianteId String
+  variante   Variante @relation(fields: [varianteId], references: [id])
+  nombre     String // copia del nombre al momento de la venta
+  cantidad   Int
+  precioUnit Int
+  costoUnit  Int
+  descuento  Int      @default(0)
+
+  @@index([pedidoId])
+  @@index([varianteId])
+}
+
+model Pago {
+  id         String     @id @default(cuid())
+  pedidoId   String
+  pedido     Pedido     @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  metodo     MetodoPago
+  estado     EstadoPago @default(PENDIENTE)
+  monto      Int
+  referencia String? // id de Wompi o comprobante de transferencia
+  creadoEn   DateTime   @default(now())
+
+  @@index([pedidoId])
+  @@index([referencia])
+}
+
+model HistorialEstado {
+  id       String       @id @default(cuid())
+  pedidoId String
+  pedido   Pedido       @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  estado   EstadoPedido
+  nota     String?
+  creadoEn DateTime     @default(now())
+
+  @@index([pedidoId])
+}
+
+model Cupon {
+  id           String    @id @default(cuid())
+  codigo       String    @unique
+  porcentaje   Int?
+  valorFijo    Int?
+  minimoCompra Int       @default(0)
+  usosMaximos  Int?
+  usos         Int       @default(0)
+  venceEn      DateTime?
+  activo       Boolean   @default(true)
+  pedidos      Pedido[]
+}
+
+model CierreCaja {
+  id              String   @id @default(cuid())
+  fecha           DateTime @default(now())
+  baseInicial     Int
+  totalEfectivo   Int
+  totalOtros      Int
+  efectivoContado Int
+  diferencia      Int
+  // CAMBIO: guarda el desglose de ventas por método de pago del día
+  // (ej: {"EFECTIVO": 120000, "NEQUI": 45000}) para poder consultar cierres antiguos
+  // tal como se vieron ese día.
+  detalle         Json?
+  notas           String?
+  usuarioId       String
+  usuario         Usuario  @relation(fields: [usuarioId], references: [id])
+}
+
+model Banner {
+  id        String  @id @default(cuid())
+  titulo    String
+  subtitulo String?
+  imagen    String
+  enlace    String?
+  orden     Int     @default(0)
+  activo    Boolean @default(true)
+}
+
+model PlantillaWhatsapp {
+  id      String @id @default(cuid())
+  clave   String @unique // PEDIDO_CONFIRMADO, DATOS_PAGO, ENVIADO, LISTO_RECOGER, GRACIAS
+  mensaje String // admite variables: {nombre}, {codigo}, {total}, {direccionTienda}
+}
+
+model ConfiguracionTienda {
+  id               String  @id @default("tienda")
+  nombre           String  @default("Glow by Adri")
+  whatsapp         String
+  instagram        String?
+  // CAMBIO: otras redes sociales que se muestran en el footer.
+  facebook         String?
+  tiktok           String?
+  direccion        String
+  ciudad           String  @default("Popayán")
+  horario          String
+  mapaUrl          String?
+  costoDomicilio   Int     @default(0)
+  costoNacional    Int     @default(0)
+  envioGratisDesde Int?
+  datosPago        String? // cuentas para transferencia / Nequi / Daviplata
+}
+
+// CAMBIO: contador para el código de pedido consecutivo (GA-0001, GA-0002…).
+// Calcular "cuántos pedidos hay + 1" falla si dos ventas ocurren al mismo tiempo
+// (ej: el POS y la web) y generaría códigos repetidos. Un UPDATE con increment
+// dentro de la transacción es atómico en PostgreSQL y nunca repite números.
+model Consecutivo {
+  clave String @id // "PEDIDO"
+  valor Int    @default(0)
+}

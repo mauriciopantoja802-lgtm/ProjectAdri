@@ -1,0 +1,167 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* =====================================================================
+   PALETA GLOW BY ADRI — cambia los colores aquí y se actualizan en todo el sitio.
+   ===================================================================== */
+:root {
+  /* Marca */
+  --glow-fucsia: #e91e8c; /* primario de marca */
+  --glow-fucsia-texto: #d0177b; /* primario accesible para texto (contraste AA) */
+  --glow-rosa: #f8bbd9; /* secundario */
+  --glow-dorado: #d4a373; /* acento (dorado rosé): fondos, íconos y adornos */
+  --glow-dorado-texto: #8c5e34; /* dorado oscuro para TEXTO pequeño (contraste AA sobre blanco) */
+  --glow-berry: #6a0d45; /* textos y footer */
+  --glow-nude: #fff1f5; /* fondos */
+  --glow-blanco: #ffffff;
+  --glow-whatsapp: #25d366; /* solo botones de WhatsApp */
+
+  /* Tokens semánticos que usan los componentes de shadcn/ui */
+  --background: var(--glow-blanco);
+  --foreground: var(--glow-berry);
+  --card: var(--glow-blanco);
+  --card-foreground: var(--glow-berry);
+  --popover: var(--glow-blanco);
+  --popover-foreground: var(--glow-berry);
+  /* El fucsia de marca (#E91E8C) da 4,17:1 sobre blanco: no alcanza el mínimo AA (4,5:1) para
+     texto normal. Para texto y botones con texto se usa esta variante apenas más profunda (5,1:1).
+     El fucsia exacto se conserva en degradados, logo, anillos y adornos (--glow-fucsia). */
+  --primary: var(--glow-fucsia-texto);
+  --primary-foreground: var(--glow-blanco);
+  --secondary: var(--glow-rosa);
+  --secondary-foreground: var(--glow-berry);
+  --accent: var(--glow-dorado);
+  --accent-foreground: var(--glow-berry);
+  --muted: var(--glow-nude);
+  --muted-foreground: #8a4a6e; /* berry suavizado, contraste AA sobre blanco y nude */
+  --destructive: #dc2626;
+  --border: #f6d3e4;
+  --input: #f1c6db;
+  --ring: var(--glow-fucsia);
+  --radius: 0.75rem;
+
+  /* Gráficas (Recharts, Fase 9) */
+  --chart-1: var(--glow-fucsia);
+  --chart-2: var(--glow-berry);
+  --chart-3: var(--glow-dorado);
+  --chart-4: #f06ab5;
+  --chart-5: #b08968;
+
+  /* Barra lateral del panel admin */
+  --sidebar: var(--glow-nude);
+  --sidebar-foreground: var(--glow-berry);
+  --sidebar-primary: var(--glow-fucsia);
+  --sidebar-primary-foreground: var(--glow-blanco);
+  --sidebar-accent: var(--glow-rosa);
+  --sidebar-accent-foreground: var(--glow-berry);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--glow-fucsia);
+}
+
+@theme inline {
+  /* Tokens de marca: bg-berry, text-nude, bg-whatsapp, etc. */
+  --color-berry: var(--glow-berry);
+  --color-nude: var(--glow-nude);
+  --color-whatsapp: var(--glow-whatsapp);
+  --color-dorado: var(--glow-dorado-texto);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Tipografías (cargadas con next/font en app/layout.tsx) */
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-playfair), ui-serif, Georgia, serif;
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Sombras suaves con tinte rosado */
+  --shadow-glow: 0 10px 30px -12px rgb(233 30 140 / 0.35);
+  --shadow-suave: 0 4px 20px -8px rgb(106 13 69 / 0.15);
+}
+
+/* Degradados de marca: bg-glow (botones y banners) y bg-glow-suave (fondos de sección) */
+/* Va del fucsia accesible al fucsia de marca: el texto blanco encima se lee en todo el degradado. */
+@utility bg-glow {
+  background-image: linear-gradient(135deg, var(--glow-fucsia-texto) 0%, var(--glow-fucsia) 100%);
+}
+
+/* Degradado fucsia → rosa para áreas grandes y decorativas SIN texto encima (ej. fondos de imágenes). */
+@utility bg-glow-rosa {
+  background-image: linear-gradient(135deg, var(--glow-fucsia) 0%, var(--glow-rosa) 100%);
+}
+
+@utility bg-glow-suave {
+  background-image: linear-gradient(135deg, var(--glow-nude) 0%, var(--glow-rosa) 100%);
+}
+
+/* Texto con degradado (para el destello del logo y títulos especiales) */
+@utility texto-dorado {
+  background-image: linear-gradient(135deg, var(--glow-dorado), #f3d9b1, var(--glow-dorado));
+  background-clip: text;
+  color: transparent;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans scroll-smooth;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading;
+  }
+}
+
+/* Respeta a quien prefiere menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
