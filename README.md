@@ -150,9 +150,13 @@ más la **ganancia potencial** de todo el stock. Las variantes sin precio de ven
 
 1. Sube el proyecto a GitHub (el archivo `.env` **no** se sube; está en `.gitignore`).
 2. En [vercel.com](https://vercel.com): **Add New → Project** e importa el repositorio.
-3. En **Settings → Environment Variables** agrega todas las variables de `.env`, con
-   `NEXT_PUBLIC_SITE_URL` = tu dominio (ej. `https://glowbyadri.com`) y un `AUTH_SECRET` nuevo.
-4. Despliega. Vercel ejecuta el script `vercel-build`, que **aplica las migraciones** y compila.
+3. En **Settings → Environment Variables** agrega las variables (el archivo `.env` no se sube a GitHub, por eso hay que cargarlas aquí):
+   - `DATABASE_URL` y `DIRECT_URL`: las URLs de **Neon** (nunca `localhost`). Atajo: en Vercel → **Storage → Neon** se crea la base y
+     las variables solas; si solo existe `DATABASE_URL_UNPOOLED`, el build la usa como `DIRECT_URL` automáticamente.
+   - `AUTH_SECRET` (uno nuevo, no el de tu computador), `NEXT_PUBLIC_SITE_URL` = tu dominio (ej. `https://glowbyadri.vercel.app`),
+     `NEXT_PUBLIC_WHATSAPP`, y las de Cloudinary, Wompi y Anthropic cuando las tengas.
+4. Despliega. Vercel ejecuta `scripts/vercel-build.mjs`: revisa las variables (con un mensaje claro si falta alguna),
+   **aplica las migraciones** y compila.
 5. Solo la primera vez, carga los datos iniciales desde tu computador apuntando a la base de producción:
    ```bash
    DATABASE_URL="…" DIRECT_URL="…" npm run db:seed
