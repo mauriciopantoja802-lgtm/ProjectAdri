@@ -6,17 +6,6 @@ import { execSync } from "node:child_process";
 
 const env = process.env;
 
-// Neon conectado desde Vercel crea DATABASE_URL (pooled) y DATABASE_URL_UNPOOLED (directa).
-// Si no definiste DIRECT_URL, usamos la directa que exista; como último recurso, DATABASE_URL.
-if (!env.DIRECT_URL) {
-  // Ojo: asignar `undefined` a process.env lo convierte en el texto "undefined"; solo se asigna si hay valor.
-  const directa = env.DATABASE_URL_UNPOOLED || env.POSTGRES_URL_NON_POOLING || env.DATABASE_URL_NON_POOLING || env.DATABASE_URL;
-  if (directa) {
-    env.DIRECT_URL = directa;
-    console.log("ℹ️  DIRECT_URL no estaba definida: se usará la conexión directa disponible.");
-  }
-}
-
 const errores = [];
 if (!env.DATABASE_URL) errores.push("DATABASE_URL: conexión a PostgreSQL (en Neon, la URL con “-pooler”).");
 if (!env.AUTH_SECRET) errores.push("AUTH_SECRET: genera uno con `npx auth secret` (o `openssl rand -base64 32`).");
@@ -34,7 +23,12 @@ if (!env.NEXT_PUBLIC_SITE_URL) {
   console.warn("⚠️  NEXT_PUBLIC_SITE_URL no está definida: los enlaces de Wompi, el sitemap y Open Graph usarán localhost. Defínela con tu dominio (ej. https://glowbyadri.vercel.app).");
 }
 
-const correr = (cmd) => execSync(cmd, { stdio: "inherit", env });
+// Las migraciones van por la conexión DIRECTA (el pooler de Neon/Supabase no las soporta).
+// Neon conectado desde Vercel la crea como DATABASE_URL_UNPOOLED; si no hay ninguna, se usa DATABASE_URL.
+const directa = env.DIRECT_URL || env.DATABASE_URL_UNPOOLED || env.POSTGRES_URL_NON_POOLING || env.DATABASE_URL_NON_POOLING || env.DATABASE_URL;
+console.log(directa === env.DATABASE_URL ? "ℹ️  Migrando con DATABASE_URL." : "ℹ️  Migrando con la conexión directa de la base de datos.");
+
+const correr = (cmd, extra = {}) => execSync(cmd, { stdio: "inherit", env: { ...env, ...extra } });
 correr("npx prisma generate");
-correr("npx prisma migrate deploy");
+correr("npx prisma migrate deploy", { DATABASE_URL: directa });
 correr("npx next build");

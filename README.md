@@ -48,7 +48,7 @@ cp .env.example .env
 | Variable | Obligatoria | Para qué sirve |
 |---|---|---|
 | `DATABASE_URL` | ✅ | Conexión *pooled* a PostgreSQL (la usa la app) |
-| `DIRECT_URL` | ✅ | Conexión directa (la usan las migraciones). En local puede ser igual a `DATABASE_URL` |
+| `DIRECT_URL` | Opcional | Conexión directa (sin pooler) que usa el build de Vercel para las migraciones. Si falta, usa `DATABASE_URL_UNPOOLED` o `DATABASE_URL` |
 | `AUTH_SECRET` | ✅ | Firma las sesiones y los enlaces de seguimiento. Genera uno con `npx auth secret` |
 | `NEXT_PUBLIC_SITE_URL` | ✅ | URL pública del sitio (en local `http://localhost:3000`) |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | ✅ | Usuaria administradora que crea el seed |
@@ -63,7 +63,10 @@ cp .env.example .env
 
 1. Crea un proyecto en Neon (región `aws-us-east-1` o `aws-sa-east-1`).
 2. En **Connect**, copia la cadena con **Connection pooling** activado → `DATABASE_URL`.
-3. Desactiva **Connection pooling** y copia la otra cadena → `DIRECT_URL`.
+3. (Opcional) Desactiva **Connection pooling** y copia la otra cadena → `DIRECT_URL`.
+
+> Para correr `npm run db:migrate` desde tu computador contra Neon, usa la URL **directa** como `DATABASE_URL`
+> (las migraciones no funcionan a través del pooler). El seed funciona con cualquiera de las dos.
 
 ## 4. Base de datos y datos de ejemplo
 
@@ -151,15 +154,15 @@ más la **ganancia potencial** de todo el stock. Las variantes sin precio de ven
 1. Sube el proyecto a GitHub (el archivo `.env` **no** se sube; está en `.gitignore`).
 2. En [vercel.com](https://vercel.com): **Add New → Project** e importa el repositorio.
 3. En **Settings → Environment Variables** agrega las variables (el archivo `.env` no se sube a GitHub, por eso hay que cargarlas aquí):
-   - `DATABASE_URL` y `DIRECT_URL`: las URLs de **Neon** (nunca `localhost`). Atajo: en Vercel → **Storage → Neon** se crea la base y
-     las variables solas; si solo existe `DATABASE_URL_UNPOOLED`, el build la usa como `DIRECT_URL` automáticamente.
+   - `DATABASE_URL`: la URL de **Neon** (nunca `localhost`). Atajo: en Vercel → **Storage → Neon** se crea la base y las
+     variables solas (`DATABASE_URL` y `DATABASE_URL_UNPOOLED`; el build usa esta última para las migraciones).
    - `AUTH_SECRET` (uno nuevo, no el de tu computador), `NEXT_PUBLIC_SITE_URL` = tu dominio (ej. `https://glowbyadri.vercel.app`),
      `NEXT_PUBLIC_WHATSAPP`, y las de Cloudinary, Wompi y Anthropic cuando las tengas.
 4. Despliega. Vercel ejecuta `scripts/vercel-build.mjs`: revisa las variables (con un mensaje claro si falta alguna),
    **aplica las migraciones** y compila.
 5. Solo la primera vez, carga los datos iniciales desde tu computador apuntando a la base de producción:
    ```bash
-   DATABASE_URL="…" DIRECT_URL="…" npm run db:seed
+   DATABASE_URL="url-de-neon" npm run db:seed
    ```
    (o crea la administradora y la configuración a mano si no quieres los productos de ejemplo).
 6. Configura en Wompi la URL de eventos con tu dominio y conecta el dominio propio en **Vercel → Domains**.

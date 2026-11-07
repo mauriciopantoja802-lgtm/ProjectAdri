@@ -7,12 +7,12 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  // CAMBIO: directUrl. Neon y Supabase entregan una URL "pooled" (pgbouncer) para la app
-  // y otra directa. Las migraciones fallan a través del pooler, así que Prisma usa
-  // DIRECT_URL para migrar y DATABASE_URL para las consultas. En local pueden ser iguales.
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  // Neon y Supabase entregan una URL "pooled" (para la app) y otra directa (para migrar,
+  // porque las migraciones fallan a través del pooler). No se declara `directUrl` aquí para
+  // que ninguna instalación o build falle si esa variable no existe: el script de Vercel
+  // (scripts/vercel-build.mjs) usa la conexión directa solo al aplicar las migraciones.
+  url      = env("DATABASE_URL")
 }
 
 enum Rol {
