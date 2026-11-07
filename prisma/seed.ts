@@ -26,6 +26,14 @@ import { slugify } from "../src/lib/slug";
 
 const prisma = new PrismaClient();
 
+/**
+ * Transacción con tiempo amplio: contra una base en la nube (Neon) cada consulta viaja por internet
+ * y el límite por defecto de Prisma (5 s) no alcanza para la compra inicial de 43 variantes.
+ */
+function transaccion<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) {
+  return prisma.$transaction(fn, { timeout: 120_000, maxWait: 20_000 });
+}
+
 // ---------------------------------------------------------------------------
 // Utilidades
 // ---------------------------------------------------------------------------
@@ -689,7 +697,7 @@ async function main() {
   const fechaCompra = haceDias(40);
   // Algunas variantes entran con poco stock para que aparezcan las alertas de "stock bajo".
   const cantidades = variantes.map((_, idx) => (idx % 9 === 4 ? 2 : entero(8, 24)));
-  await prisma.$transaction(async (tx) => {
+  await transaccion(async (tx) => {
     const compra = await tx.compra.create({
       data: {
         proveedorId: proveedor.id,
@@ -787,7 +795,7 @@ async function main() {
     const seDescontoStock = idxDescuento >= 0;
     const seDevolvioStock = seDescontoStock && estadoFinal === P.CANCELADO;
 
-    await prisma.$transaction(async (tx) => {
+    await transaccion(async (tx) => {
       const codigo = await siguienteCodigoPedido(tx);
       const pedido = await tx.pedido.create({
         data: {
@@ -874,7 +882,7 @@ async function main() {
   eventos.sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
   for (const evento of eventos) {
     const signo = evento.tipo === TipoMovimiento.SALIDA_VENTA ? -1 : 1;
-    await prisma.$transaction(async (tx) => {
+    await transaccion(async (tx) => {
       for (const it of evento.items) {
         const nuevo = (stockKardex.get(it.v.id) ?? 0) + signo * it.cantidad;
         if (nuevo < 0) throw new Error(`Stock negativo en el seed para ${it.v.nombreCompleto}`);
@@ -901,7 +909,7 @@ async function main() {
 
   // --- Ajuste negativo de ejemplo (AJUSTE_NEGATIVO) ----------------------
   const danada = variantes.find((v) => v.stock >= 5)!;
-  await prisma.$transaction(async (tx) => {
+  await transaccion(async (tx) => {
     danada.stock -= 1;
     await tx.variante.update({ where: { id: danada.id }, data: { stock: danada.stock } });
     await tx.movimientoInventario.create({
